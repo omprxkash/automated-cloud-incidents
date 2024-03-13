@@ -1,0 +1,205 @@
+heat_template_version: 2018-08-31
+
+description: >
+  3-tier web stack — private network, load balancer, auto-scaling web tier,
+  and a database server with attached Cinder volume.
+
+parameters:
+  key_name:
+    type: string
+    description: SSH key pair name
+    constraints:
+      - custom_constraint: nova.keypair
+
+  image:
+    type: string
+    description: Image name or ID for web and DB servers
+    default: ubuntu-22.04
+
+  web_flavor:
+    type: string
+    description: Flavor for web tier instances
+    default: m1.small
+
+  db_flavor:
+    type: string
+    description: Flavor for the database server
+    default: m1.medium
+
+  db_volume_size:
+    type: number
+    description: Size of the database volume in GiB
+    default: 50
+
+  public_network:
+    type: string
+    description: Name or ID of the external/public network
+    default: public
+
+  web_min_size:
+    type: number
+    description: Minimum number of web servers
+    default: 1
+
+  web_max_size:
+    type: number
+    description: Maximum number of web servers
+    default: 4
+
+  web_desired_size:
+    type: number
+    description: Initial number of web servers
+    default: 2
+
+  web_server_name_prefix:
+    type: string
+    description: Name prefix for web servers in the auto-scaling group
+    default: web
+
+resources:
+
+  # ---- Networking ----
+
+  private_network:
+    type: OS::Neutron::Net
+    properties:
+      name: private-net
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network: { get_resource: private_network }
+      name: private-subnet
+      cidr: 10.10.0.0/24
+      dns_nameservers: [8.8.8.8, 8.8.4.4]
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: { get_param: public_network }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router: { get_resource: router }
+      subnet: { get_resource: private_subnet }
+
+  # ---- Load Balancer ----
+
+  lb:
+    type: OS::Octavia::LoadBalancer
+    properties:
+      vip_subnet: { get_resource: private_subnet }
+      name: web-lb
+
+  lb_listener:
+    type: OS::Octavia::Listener
+    properties:
+      loadbalancer: { get_resource: lb }
+      protocol: HTTP
+      protocol_port: 80
+      name: web-listener
+
+  lb_pool:
+    type: OS::Octavia::Pool
+    properties:
+      listener: { get_resource: lb_listener }
+      lb_algorithm: ROUND_ROBIN
+      protocol: HTTP
+      name: web-pool
+
+  # ---- Web Tier — Auto Scaling ----
+
+  web_server_group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: { get_param: web_min_size }
+      max_size: { get_param: web_max_size }
+      desired_capacity: { get_param: web_desired_size }
+      resource:
+        type: OS::Nova::Server
+        properties:
+          key_name: { get_param: key_name }
+          image: { get_param: image }
+          flavor: { get_param: web_flavor }
+          networks:
+            - network: { get_resource: private_network }
+          user_data_format: RAW
+          user_data: |
+            #!/bin/bash
+            apt-get update -q
+            apt-get install -y nginx
+            systemctl enable --now nginx
+
+  scale_up_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: web_server_group }
+      cooldown: 120
+      scaling_adjustment: 1
+
+  scale_down_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: web_server_group }
+      cooldown: 120
+      scaling_adjustment: -1
+
+  # ---- Database Server ----
+
+  db_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: db-data
+      size: { get_param: db_volume_size }
+
+  db_server:
+    type: OS::Nova::Server
+    properties:
+      key_name: { get_param: key_name }
+      image: { get_param: image }
+      flavor: { get_param: db_flavor }
+      name: db-server
+      networks:
+        - network: { get_resource: private_network }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/bash
+        apt-get update -q
+        apt-get install -y postgresql
+        systemctl enable --now postgresql
+
+  db_volume_attach:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: db_volume }
+      instance_uuid: { get_resource: db_server }
+
+  # ---- Floating IP for LB ----
+
+  lb_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_network }
+      port_id: { get_attr: [lb, vip_port_id] }
+
+outputs:
+
+  load_balancer_ip:
+    description: Public IP address of the load balancer
+    value: { get_attr: [lb_floating_ip, floating_ip_address] }
+
+  scale_up_url:
+    description: POST to this URL to trigger a scale-up
+    value: { get_attr: [scale_up_policy, alarm_url] }
+
+  scale_down_url:
+    description: POST to this URL to trigger a scale-down
+    value: { get_attr: [scale_down_policy, alarm_url] }
+
+  db_server_id:
+    description: ID of the database server
+    value: { get_resource: db_server }

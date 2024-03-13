@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this code in your research, please cite it as below."
+type: software
+title: "Graph-Attention Vision Transformers for CIFAR-100 Classification"
+authors:
+  - family-names: Pugazhendhi
+    given-names: Omprakash
+    affiliation: "Vellore Institute of Technology, Chennai"
+    email: omprakash.2021@vitstudent.ac.in
+repository-code: "https://github.com/omprxkash/automated-cloud-incidents"
+url: "https://github.com/omprxkash/automated-cloud-incidents"
+abstract: >
+  An original PyTorch implementation of graph-attention enhanced Vision Transformers
+  for CIFAR-100 image classification. Combines an EfficientNetV2-S backbone with
+  a sparse k-NN patch graph (Gaussian edge weights, threshold pruning) and a
+  Graph Attention Network before a Transformer encoder. Benchmarks four variants:
+  ViT-Small, GAT-ViT, Sparse-GAT-ViT, and DeiT-Small.
+keywords:
+  - vision transformer
+  - graph attention network
+  - image classification
+  - CIFAR-100
+  - deep learning
+  - PyTorch
+license: MIT
+date-released: "2025-06-19"

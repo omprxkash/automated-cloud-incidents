@@ -1,0 +1,37 @@
+model: sparse_gat        # vit | gat_vit | sparse_gat | deit
+dataset: cifar100
+data_root: ./data
+
+input_size: 128
+patch_k: 4               # spatial patch side length for feature map unfolding
+
+# graph construction
+graph_k: 4               # k-nearest neighbours for sparse graph
+graph_sigma: 1.0         # gaussian kernel bandwidth
+graph_threshold: 0.1     # prune edges below this weight
+
+# GAT / transformer dims
+gat_hidden: 128
+gat_heads: 4
+d_model: 256
+nhead: 8
+transformer_layers: 4
+mlp_hidden: 512
+dropout: 0.1
+
+# training
+epochs: 100
+batch_size: 128
+lr: 1.0e-3
+warmup_epochs: 10
+weight_decay: 1.0e-2
+grad_clip: 1.0
+num_workers: 4
+
+# deit distillation
+distill_alpha: 0.5
+teacher_model: resnet50
+
+# paths
+checkpoint_dir: ./results
+log_interval: 50         # batches between log prints

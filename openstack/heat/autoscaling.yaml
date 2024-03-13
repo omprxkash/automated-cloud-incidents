@@ -1,0 +1,81 @@
+heat_template_version: 2018-08-31
+
+description: >
+  Ceilometer alarms wired to the scaling policies defined in web_stack.yaml.
+  Deploy this stack after web_stack.yaml and supply its outputs as parameters.
+
+parameters:
+  scale_up_url:
+    type: string
+    description: Alarm action URL from the web_stack scale_up_policy output
+
+  scale_down_url:
+    type: string
+    description: Alarm action URL from the web_stack scale_down_policy output
+
+  high_cpu_threshold:
+    type: number
+    description: CPU % that triggers scale-up
+    default: 75
+
+  low_cpu_threshold:
+    type: number
+    description: CPU % that triggers scale-down
+    default: 20
+
+  alarm_period:
+    type: number
+    description: Alarm evaluation period in seconds
+    default: 60
+
+  alarm_evaluation_periods:
+    type: number
+    description: Number of consecutive periods before alarm fires
+    default: 3
+
+  network_alarm_threshold:
+    type: number
+    description: Network bytes/sec that triggers scale-up alongside CPU
+    default: 10000000
+
+resources:
+
+  cpu_alarm_high:
+    type: OS::Aodh::Alarm
+    properties:
+      description: Scale up when average CPU > threshold
+      meter_name: cpu_util
+      statistic: avg
+      period: { get_param: alarm_period }
+      evaluation_periods: { get_param: alarm_evaluation_periods }
+      threshold: { get_param: high_cpu_threshold }
+      comparison_operator: gt
+      alarm_actions:
+        - { get_param: scale_up_url }
+      ok_actions: []
+      insufficient_data_actions: []
+
+  cpu_alarm_low:
+    type: OS::Aodh::Alarm
+    properties:
+      description: Scale down when average CPU < threshold
+      meter_name: cpu_util
+      statistic: avg
+      period: { get_param: alarm_period }
+      evaluation_periods: { get_param: alarm_evaluation_periods }
+      threshold: { get_param: low_cpu_threshold }
+      comparison_operator: lt
+      alarm_actions:
+        - { get_param: scale_down_url }
+      ok_actions: []
+      insufficient_data_actions: []
+
+outputs:
+
+  cpu_alarm_high_id:
+    description: ID of the scale-up CPU alarm
+    value: { get_resource: cpu_alarm_high }
+
+  cpu_alarm_low_id:
+    description: ID of the scale-down CPU alarm
+    value: { get_resource: cpu_alarm_low }

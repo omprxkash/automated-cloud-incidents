@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars — it contains your cloud credentials.
+
+auth_url       = "https://keystone.example.com:5000/v3"
+project_name   = "demo"
+username       = "demo"
+password       = "replace-me"
+region         = "RegionOne"
+public_network = "public"
+key_pair       = "my-key"
+image_name     = "ubuntu-22.04"
+flavor_name    = "m1.small"
+instance_count = 1
+volume_size    = 20
+subnet_cidr    = "10.20.0.0/24"
