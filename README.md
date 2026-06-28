@@ -4,10 +4,10 @@ Research and tooling for automated cloud reliability — from incident triaging 
 
 ---
 
-## `openstack/`
+## [`openstack/`](openstack/)
 Infrastructure provisioning and configuration tooling for OpenStack deployments — Terraform modules, Heat templates, and scripts for managing compute, networking, and storage resources.
 
-## `stack-vm/`
+## [`stack-vm/`](stack-vm/)
 A minimal stack-based virtual machine implemented from scratch. Covers bytecode design, an assembler, and the interpreter loop — useful for understanding how VMs work at the instruction level.
 
 ---
